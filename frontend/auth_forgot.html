@@ -1,0 +1,52 @@
+<!-- frontend/auth_forgot.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Forgot — Smart Expense Tracker</title>
+  <style>
+    body{font-family:Inter, Arial; background:#f6f8fa; display:flex; min-height:100vh; align-items:center; justify-content:center}
+    .box{background:#fff;padding:18px;border-radius:10px;width:420px; box-shadow:0 8px 18px rgba(0,0,0,0.06)}
+    input{width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid #eaeef3}
+    button{background:#0b63ff;color:#fff;padding:8px 12px;border:none;border-radius:8px}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h3>Forgot password</h3>
+    <p>Enter username to begin password reset</p>
+    <input id="username" placeholder="username" />
+    <button id="start">Start</button>
+    <div id="stage" style="margin-top:10px"></div>
+  </div>
+
+  <script>
+    document.getElementById("start").addEventListener("click", async ()=>{
+      const u = document.getElementById("username").value.trim(); if(!u){alert("Enter username");return;}
+      const form = new FormData(); form.append("username", u);
+      const res = await fetch("/auth/forgot", { method:"POST", body: form });
+      const j = await res.json();
+      if(j.error){ alert(j.error); return; }
+      // show reset form
+      document.getElementById("stage").innerHTML = `
+        <p>Answer security question(s) you set during registration.</p>
+        <input id="ans1" placeholder="Answer 1 (if set)"/><br/>
+        <input id="ans2" placeholder="Answer 2 (if set)"/><br/>
+        <input id="new" placeholder="New password" type="password"/><br/>
+        <button id="finish">Reset password</button>
+      `;
+      document.getElementById("finish").addEventListener("click", async ()=>{
+        const form2 = new FormData();
+        form2.append("username", u);
+        form2.append("ans1", document.getElementById("ans1").value.trim());
+        form2.append("ans2", document.getElementById("ans2").value.trim());
+        form2.append("new_password", document.getElementById("new").value);
+        const r2 = await fetch("/auth/reset", { method:"POST", body: form2 });
+        const j2 = await r2.json();
+        if(j2.ok) { alert("Password reset! Please login."); window.location="/auth/login"; }
+        else alert(j2.error || "Reset failed");
+      });
+    });
+  </script>
+</body>
+</html>

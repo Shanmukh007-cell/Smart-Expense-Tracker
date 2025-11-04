@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login — Smart Expense Tracker</title>
+  <style>
+    :root{
+      --bg: #f6f8fa;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --text:#111827;
+      --accent:#2563eb; /* chosen blue */
+      --shadow: 0 10px 30px rgba(16,24,40,0.06);
+      --radius:12px;
+    }
+    [data-theme="dark"]{
+      --bg: #0b1220;
+      --card: #0f1724;
+      --muted:#9ca3af;
+      --text:#e6eef8;
+      --accent:#2563eb;
+      --shadow: 0 10px 30px rgba(2,6,23,0.7);
+    }
+
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+    body{background:var(--bg); color:var(--text); display:flex; align-items:center; justify-content:center; padding:24px;}
+    .card{
+      width:520px; max-width:96%;
+      background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:28px; position:relative;
+    }
+    .logo{
+      display:flex; align-items:center; gap:10px; margin-bottom:10px;
+      font-weight:700; font-size:18px;
+    }
+    .logo .emoji{ font-size:22px; }
+    h1{margin:6px 0 2px; font-size:20px;}
+    p.lead{margin:0 0 18px;color:var(--muted);}
+
+    .field{margin-bottom:12px;}
+    label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px;}
+    input[type="text"], input[type="password"], input[type="email"]{
+      width:100%; padding:10px 12px; border-radius:8px; border:1px solid #e6eef8; background:transparent;
+      box-sizing:border-box; font-size:14px; color:var(--text);
+    }
+    [data-theme="dark"] input{ border:1px solid rgba(255,255,255,0.06); }
+
+    .row{display:flex; gap:8px; align-items:center;}
+    .btn{
+      background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;
+      font-weight:600; box-shadow:0 6px 18px rgba(37,99,235,0.14);
+    }
+    .btn.ghost{ background:transparent; color:var(--accent); border:1px solid rgba(37,99,235,0.12); box-shadow:none; }
+    .small{ font-size:13px; padding:8px 10px; }
+
+    .links{margin-top:10px; display:flex; justify-content:space-between; color:var(--muted); font-size:13px;}
+    .links a{ color:var(--accent); text-decoration:none; font-weight:600; }
+
+    .toggle {
+      position:absolute; right:14px; top:14px;
+      background:transparent; border:1px solid rgba(0,0,0,0.06); border-radius:8px; padding:6px 8px; cursor:pointer;
+    }
+
+    .note { margin-top:12px; color:var(--muted); font-size:13px; }
+
+    .message { margin-top:12px; padding:10px 12px; border-radius:8px; display:none; }
+    .message.error { background:rgba(255, 85, 85, 0.08); color:#991b1b; border:1px solid rgba(153,27,27,0.08); display:block; }
+    .message.success { background:rgba(34,197,94,0.06); color:#064e3b; border:1px solid rgba(16,185,129,0.08); display:block; }
+
+    .foot { margin-top:16px; text-align:center; color:var(--muted); font-size:13px; }
+    .password-row{ display:flex; gap:8px; align-items:center; }
+
+    @media (max-width:520px){
+      .card{ padding:18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="auth-card">
+    <button id="themeToggle" class="toggle" title="Toggle theme">🌙</button>
+
+    <div class="logo"><span class="emoji">📊</span><div>Smart Expense Tracker</div></div>
+    <h1>Welcome back — Login</h1>
+    <p class="lead">Sign in to upload statements & see predictions</p>
+
+    <div id="msg" class="message"></div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" placeholder="Your username" required />
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="password-row">
+          <input id="password" name="password" type="password" placeholder="Password" required />
+          <button type="button" id="pwToggle" class="btn ghost small">Show</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <button class="btn" type="submit">Login</button>
+        <button type="button" id="demoBtn" class="btn ghost small">Demo</button>
+      </div>
+
+      <div class="links">
+        <a href="/forgot">Forgot Password?</a>
+        <a href="/register">Register</a>
+      </div>
+      
+    </form>
+
+    
+  </div>
+
+<script>
+  // theme toggle
+  const root = document.documentElement;
+  function setTheme(t){
+    document.documentElement.setAttribute("data-theme", t);
+    document.getElementById("themeToggle").textContent = (t === "dark") ? "☀️" : "🌙";
+    localStorage.setItem("siteTheme", t);
+  }
+  const saved = localStorage.getItem("siteTheme") || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark":"light");
+  setTheme(saved);
+
+  document.getElementById("themeToggle").addEventListener("click", ()=>{
+    const cur = document.documentElement.getAttribute("data-theme");
+    setTheme(cur === "dark" ? "light" : "dark");
+  });
+
+  // pw toggle
+  const pw = document.getElementById("password");
+  const pwToggle = document.getElementById("pwToggle");
+  pwToggle.addEventListener("click", ()=>{
+    if (pw.type === "password"){ pw.type = "text"; pwToggle.textContent = "Hide"; }
+    else { pw.type = "password"; pwToggle.textContent = "Show"; }
+  });
+
+  // form submit
+  const form = document.getElementById("loginForm");
+  const msg = document.getElementById("msg");
+
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    msg.style.display = "none";
+
+    const payload = {
+      username: form.username.value.trim(),
+      password: form.password.value
+    };
+
+    try {
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json();
+      if (res.ok){
+        msg.className = "message success";
+        msg.textContent = "Logged in. Redirecting...";
+        msg.style.display = "block";
+        // redirect to dashboard
+        setTimeout(()=> window.location.href = "/dashboard", 700);
+      } else {
+        msg.className = "message error";
+        msg.textContent = j.error || "Login failed";
+        msg.style.display = "block";
+      }
+    } catch (err){
+      msg.className = "message error";
+      msg.textContent = "Network error — try again.";
+      msg.style.display = "block";
+    }
+  });
+
+  // demo button (fills sample creds)
+  document.getElementById("demoBtn").addEventListener("click", ()=>{
+    document.getElementById("username").value = "admin";
+    document.getElementById("password").value = "admin123";
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!-- frontend/admin_db_view.html -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Admin — User DB</title>
+  <style>table{border-collapse:collapse;width:100%}th,td{padding:8px;border:1px solid #ddd}</style>
+</head>
+<body>
+  <h2>Admin — All Users</h2>
+  <p><a href="/logout">Logout</a></p>
+  <table>
+    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Password (plain)</th><th>Sec Q1</th><th>Sec Q2</th><th>Admin</th><th>Created</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.password }}</td>
+        <td>{{ u.sec_q1 }}</td>
+        <td>{{ u.sec_q2 }}</td>
+        <td>{{ 1 if u.is_admin else 0 }}</td>
+        <td>{{ u.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

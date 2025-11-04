@@ -1,0 +1,9 @@
+Flask
+pandas
+Werkzeug
+python-dotenv
+scikit-learn
+numpy
+PyPDF2
+pdfplumber
+matplotlib

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Register — Smart Expense Tracker</title>
+  <style>
+    :root{
+      --bg: #f6f8fa;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --text:#111827;
+      --accent:#2563eb;
+      --shadow: 0 10px 30px rgba(16,24,40,0.06);
+      --radius:12px;
+    }
+    [data-theme="dark"]{
+      --bg: #0b1220;
+      --card:#0f1724;
+      --muted:#9ca3af;
+      --text:#e6eef8;
+      --accent:#2563eb;
+      --shadow: 0 10px 30px rgba(2,6,23,0.7);
+    }
+
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+    body{background:var(--bg); color:var(--text); display:flex; align-items:center; justify-content:center; padding:24px;}
+    .card{ width:520px; max-width:96%; background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:28px; position:relative;}
+    .logo{display:flex; align-items:center; gap:10px; margin-bottom:10px; font-weight:700; font-size:18px;}
+    h1{margin:6px 0 2px; font-size:20px;}
+    p.lead{margin:0 0 18px;color:var(--muted);}
+
+    .field{margin-bottom:12px;}
+    label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px;}
+    input[type="text"], input[type="password"], input[type="email"]{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #e6eef8; background:transparent; font-size:14px; color:var(--text); }
+    [data-theme="dark"] input{ border:1px solid rgba(255,255,255,0.06); }
+
+    .btn{ background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600;}
+    .btn.ghost{ background:transparent; color:var(--accent); border:1px solid rgba(37,99,235,0.12); }
+
+    .toggle { position:absolute; right:14px; top:14px; background:transparent; border:1px solid rgba(0,0,0,0.06); border-radius:8px; padding:6px 8px; cursor:pointer; }
+    .note { margin-top:8px; color:var(--muted); font-size:13px; }
+
+    .links { margin-top:12px; font-size:13px; color:var(--muted); }
+    .links a{ color:var(--accent); text-decoration:none; font-weight:600; }
+
+    .message { margin-top:12px; padding:10px 12px; border-radius:8px; display:none; }
+    .message.error { background:rgba(255, 85, 85, 0.08); color:#991b1b; border:1px solid rgba(153,27,27,0.08); display:block; }
+    .message.success { background:rgba(34,197,94,0.06); color:#064e3b; border:1px solid rgba(16,185,129,0.08); display:block; }
+
+    @media (max-width:520px){ .card{ padding:18px; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <button id="themeToggle" class="toggle" title="Toggle theme">🌙</button>
+
+    <div class="logo"><span style="font-size:22px">📊</span><div>Smart Expense Tracker</div></div>
+    <h1>Create account — Register</h1>
+    <p class="lead">Register to upload statements and see expense predictions.</p>
+
+    <div id="msg" class="message"></div>
+
+    <form id="regForm">
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" placeholder="Choose a username" required />
+      </div>
+
+      <div class="field">
+        <label for="email">Email (optional)</label>
+        <input id="email" name="email" type="email" placeholder="you@example.com" />
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="Create a password" required />
+      </div>
+
+      <div class="field">
+        <label for="confirm">Confirm password</label>
+        <input id="confirm" name="confirm" type="password" placeholder="Re-type password" required />
+      </div>
+
+      <hr style="border:none;height:1px;background:#eef;margin:12px 0;" />
+
+      <div class="field">
+        <label for="q1">Security question — School name (for recovery)</label>
+        <input id="q1" name="q1" type="text" placeholder="Your school name" />
+      </div>
+
+      <div class="field">
+        <label for="q2">Security question — Favourite color</label>
+        <input id="q2" name="q2" type="text" placeholder="Your favourite color" />
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <button class="btn" type="submit">Register</button>
+        <a class="btn ghost" href="/login" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">Back to login</a>
+      </div>
+
+      <div class="links" style="margin-top:14px;">By registering you accept this demo project's <a href="#">terms</a>.</div>
+    </form>
+  </div>
+
+<script>
+  // theme toggle (shared code)
+  function setTheme(t){ document.documentElement.setAttribute("data-theme", t); localStorage.setItem("siteTheme", t); document.getElementById("themeToggle").textContent = (t==="dark")?"☀️":"🌙"; }
+  const saved = localStorage.getItem("siteTheme") || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark":"light");
+  setTheme(saved);
+  document.getElementById("themeToggle").addEventListener("click", ()=> setTheme(document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark"));
+
+  // register form
+  const form = document.getElementById("regForm");
+  const msg = document.getElementById("msg");
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    msg.style.display = "none";
+
+    const username = form.username.value.trim();
+    const email = form.email.value.trim();
+    const password = form.password.value;
+    const confirm = form.confirm.value;
+    const q1 = form.q1.value.trim();
+    const q2 = form.q2.value.trim();
+
+    if (!username) { showError("Choose a username"); return; }
+    if (password.length < 4) { showError("Choose a stronger password (min 4 chars)"); return; }
+    if (password !== confirm) { showError("Passwords do not match"); return; }
+
+    const payload = { username, email, password, q1, q2 };
+    try {
+      const res = await fetch("/register", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+      const j = await res.json();
+      if (res.ok){
+        showSuccess("Registered successfully — redirecting to login...");
+        setTimeout(()=> window.location.href = "/login", 900);
+      } else {
+        showError(j.error || "Registration failed");
+      }
+    } catch(err){
+      showError("Network error — try again");
+    }
+  });
+
+  function showError(t){ msg.className = "message error"; msg.textContent = t; msg.style.display = "block"; }
+  function showSuccess(t){ msg.className = "message success"; msg.textContent = t; msg.style.display = "block"; }
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+
+# ---- Virtual Environment ----
+venv/
+env/
+.venv/
+
+# ---- IDE / Editor ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# ---- Uploaded Files ----
+backend/uploads/
+backend/data/
+
+# ---- Logs ----
+*.log
+*.out
+
+# ---- Environment / Secrets ----
+.env
+.env.local
+.env.*

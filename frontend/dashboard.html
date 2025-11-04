@@ -1,0 +1,160 @@
+<!-- frontend/dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Expense Tracker — Statement Mode</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, Arial; background:#f6f8fa; margin:0; }
+    header { background:#ffffff; border-bottom:1px solid #eee; padding: 18px; text-align:center; font-weight:600; }
+    main { max-width:1100px; margin:24px auto; padding:0 16px; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; }
+    .card { background:#fff; border-radius:10px; padding:16px; box-shadow:0 6px 18px rgba(20,20,30,0.05); }
+    .upload { width:100%; text-align:center; padding:18px; }
+    .cards { display:flex; gap:12px; margin-bottom:18px; }
+    .card.small { flex:1; min-width:160px; text-align:center; }
+    .charts { display:flex; gap:18px; align-items:flex-start; margin-top:12px; }
+    .chart-wrap { flex:1; min-width:320px; background:#fff; padding:14px; border-radius:10px; }
+    table { width:100%; border-collapse:collapse; background:#fff; margin-top:12px; border-radius:8px; overflow:hidden; }
+    th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #eef; }
+    th { background:#f3f7fb; }
+    tr:hover { background:#fafcff; }
+    .top5 { margin-top:10px; }
+    .legend { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .legend-item { display:flex; gap:6px; align-items:center; font-size:13px; color:#444; }
+    .color-box { width:12px; height:12px; border-radius:2px; display:inline-block; }
+  </style>
+</head>
+<body>
+  <header>📊 Smart Expense Tracker — Statement Mode</header>
+  <main>
+    <div class="upload card upload">
+      <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" id="pdf-upload" name="pdf" accept=".pdf" />
+        <button type="submit">Upload & Process</button>
+      </form>
+      <p style="margin-top:8px; font-size:13px; color:#666">Only DEBIT entries (actual expenses) are considered.</p>
+    </div>
+
+    <div class="cards">
+      <div class="card small">
+        <div>Total Spent</div>
+        <div style="font-size:20px; margin-top:8px;">₹{{ total }}</div>
+      </div>
+      <div class="card small">
+        <div>Predicted Next Month</div>
+        <div style="font-size:20px; margin-top:8px;">₹{{ predicted }}</div>
+      </div>
+      <div class="card small">
+        <div>Categories</div>
+        <div style="font-size:16px; margin-top:8px;">{{ categories | length }}</div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="chart-wrap card">
+        <h3>Category Breakdown</h3>
+        <canvas id="pieChart"></canvas>
+      </div>
+
+      <div class="chart-wrap card">
+        <h3>Monthly Category Spend (grouped)</h3>
+        <canvas id="barChart"></canvas>
+        <div id="bar-legend" class="legend"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Top 5 Highest Payments</h3>
+      {% if top5 %}
+      <table>
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th></tr></thead>
+        <tbody>
+          {% for r in top5 %}
+          <tr>
+            <td>{{ r.ParsedDate or r.Date }}</td>
+            <td>{{ r.Description }}</td>
+            <td>{{ r.Category }}</td>
+            <td>₹{{ r.Amount }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:#666">No transactions — upload a statement PDF to begin.</p>
+      {% endif %}
+    </div>
+  </main>
+
+  <script>
+    // Data from Flask
+    const pieLabels = {{ pie_labels | tojson | safe }};
+    const pieValues = {{ pie_values | tojson | safe }};
+
+    const monthNames = {{ month_names | tojson | safe }};      // e.g. ["2025-07","2025-08"]
+    const barDatasets = {{ bar_datasets | tojson | safe }};   // [{label, data}, ...]
+    // Color palette
+    const colors = ['#007bff','#28a745','#ffc107','#dc3545','#6f42c1','#20c997','#fd7e14','#6c757d'];
+
+    // ---------- Pie chart ----------
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    new Chart(pieCtx, {
+      type: 'doughnut',
+      data: {
+        labels: pieLabels,
+        datasets: [{ data: pieValues }]
+      },
+      options: { plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // ---------- Grouped bar chart ----------
+    // Prepare Chart.js datasets
+    const chartDatasets = barDatasets.map((d, i) => ({
+      label: d.label,
+      data: d.data,
+      backgroundColor: colors[i % colors.length]
+    }));
+
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    const barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: monthNames,
+        datasets: chartDatasets
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { stacked: false },
+          y: { stacked: false, beginAtZero: true }
+        }
+      }
+    });
+
+    // Build a custom legend below bar chart (only visible categories)
+    const legendDiv = document.getElementById('bar-legend');
+    chartDatasets.forEach((d,i) => {
+      const el = document.createElement('div');
+      el.className = 'legend-item';
+      el.innerHTML = `<span class="color-box" style="background:${d.backgroundColor}"></span>${d.label}`;
+      legendDiv.appendChild(el);
+    });
+
+    // ---------- Upload logic ----------
+    document.getElementById("upload-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById("pdf-upload");
+      const file = fileInput.files[0];
+      if (!file) { alert("Please select a PDF file before uploading!"); return; }
+      const formData = new FormData();
+      formData.append("pdf", file);
+      const res = await fetch("/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      alert(data.message || data.error || "Done");
+      setTimeout(()=> location.reload(), 1000);
+    });
+  </script>
+</body>
+</html>
