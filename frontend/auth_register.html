@@ -96,7 +96,7 @@
 
       <div style="display:flex;gap:12px;margin-top:8px;">
         <button class="btn" type="submit">Register</button>
-        <a class="btn ghost" href="/login" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">Back to login</a>
+        <a class="btn ghost" href="/auth/login" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">Back to login</a>
       </div>
 
       <div class="links" style="margin-top:14px;">By registering you accept this demo project's <a href="#">terms</a>.</div>
@@ -130,11 +130,11 @@
 
     const payload = { username, email, password, q1, q2 };
     try {
-      const res = await fetch("/register", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+      const res = await fetch("/auth/register", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
       const j = await res.json();
       if (res.ok){
         showSuccess("Registered successfully — redirecting to login...");
-        setTimeout(()=> window.location.href = "/login", 900);
+        setTimeout(()=> window.location.href = "/auth/login", 900);
       } else {
         showError(j.error || "Registration failed");
       }
