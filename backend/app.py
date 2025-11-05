@@ -13,13 +13,20 @@ from user_db import (
 from utils import ensure_user_csv
 import pandas as pd
 
-
 # ----------------- FLASK APP CONFIG -----------------
-app = Flask(__name__, template_folder="../frontend", static_folder="../frontend")
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = BASE_DIR.parent / "frontend"
+
+app = Flask(
+    __name__,
+    template_folder=str(FRONTEND_DIR),
+    static_folder=str(FRONTEND_DIR)
+)
+
 app.secret_key = os.environ.get("FLASK_SECRET", "local-dev-secret")
 app.config['SESSION_COOKIE_NAME'] = 'expense_user'
 
-UPLOAD_DIR = str(Path(__file__).resolve().parent / "uploads")
+UPLOAD_DIR = str(BASE_DIR / "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ✅ Ensure SQLite DB exists at startup
