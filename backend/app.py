@@ -172,10 +172,8 @@ def admin_users():
     return jsonify(list_users())
 
 
-# ----------------- START SERVER -----------------
+# ---------------- START SERVER ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))  # ✅ Railway compatible
     app.run(host="0.0.0.0", port=port)        # ✅ Works both local & cloud
 
-
-Fix: dynamic PORT for Railway deployment
