@@ -13,9 +13,14 @@ from user_db import (
 from utils import ensure_user_csv
 import pandas as pd
 
+
 # ----------------- FLASK APP CONFIG -----------------
-BASE_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = BASE_DIR.parent / "frontend"
+BASE_DIR = Path(__file__).resolve().parent        # backend/
+ROOT_DIR = BASE_DIR.parent                        # project root (smart_expense_tracker_pdf)
+FRONTEND_DIR = ROOT_DIR / "frontend"              # absolute path to frontend/
+
+# ✅ Print to confirm where Flask is looking (visible in Railway logs)
+print("📁 FRONTEND_DIR =", FRONTEND_DIR)
 
 app = Flask(
     __name__,
@@ -36,6 +41,7 @@ init_db()
 # ----------------- HELPERS -----------------
 def logged_in():
     return session.get("username")
+
 
 def require_login(fn):
     def wrapper(*a, **kw):
@@ -133,7 +139,8 @@ def dashboard():
         bar_datasets = []
         month_names = []
 
-    return render_template("dashboard.html",
+    return render_template(
+        "dashboard.html",
         total=total,
         predicted=predicted,
         categories=categories,
@@ -142,7 +149,8 @@ def dashboard():
         pie_values=list(categories.values()),
         month_names=month_names,
         bar_datasets=bar_datasets,
-        top5=(df.sort_values("Amount", ascending=False).head(5).to_dict(orient="records") if not df.empty else [])
+        top5=(df.sort_values("Amount", ascending=False)
+              .head(5).to_dict(orient="records") if not df.empty else [])
     )
 
 
@@ -156,7 +164,6 @@ def upload_pdf():
     if not pdf:
         return jsonify({"error": "No PDF uploaded"}), 400
 
-    # Ensure upload directory exists
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     fname = secure_filename(pdf.filename)
@@ -168,7 +175,8 @@ def upload_pdf():
 
     try:
         from save_pdf_expense import append_transactions_from_pdf
-        result = append_transactions_from_pdf(save_path, csv_path, username=user, ignore_duplicates=True)
+        result = append_transactions_from_pdf(
+            save_path, csv_path, username=user, ignore_duplicates=True)
         print(f"✅ Upload result: {result}")
         return jsonify({"ok": True, "result": result})
     except Exception as e:
@@ -191,4 +199,3 @@ def admin_users():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))  # ✅ Railway compatible
     app.run(host="0.0.0.0", port=port)        # ✅ Works both local & cloud
-
