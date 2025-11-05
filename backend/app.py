@@ -12,30 +12,22 @@ from user_db import (
 )
 from utils import ensure_user_csv
 import pandas as pd
-
+from datetime import timedelta
 
 # ----------------- FLASK APP CONFIG -----------------
 BASE_DIR = Path(__file__).resolve().parent
-ROOT_DIR = BASE_DIR.parent
+FRONTEND_DIR = BASE_DIR.parent / "frontend"
 
-# ✅ Absolute frontend paths (for Railway & local)
-FRONTEND_TEMPLATES = str(ROOT_DIR / "frontend")
-FRONTEND_STATIC = str(ROOT_DIR / "frontend")
-
-# Print these to verify once during Railway logs
-print("📂 FRONTEND_TEMPLATES =", FRONTEND_TEMPLATES)
-print("📂 FRONTEND_STATIC =", FRONTEND_STATIC)
-print("📂 Current Working Dir =", os.getcwd())
-
-# ✅ Initialize Flask with absolute template/static dirs
 app = Flask(
     __name__,
-    template_folder=FRONTEND_TEMPLATES,
-    static_folder=FRONTEND_STATIC
+    template_folder=str(FRONTEND_DIR),
+    static_folder=str(FRONTEND_DIR)
 )
 
 app.secret_key = os.environ.get("FLASK_SECRET", "local-dev-secret")
-app.config["SESSION_COOKIE_NAME"] = "expense_user"
+app.config['SESSION_COOKIE_NAME'] = 'expense_user'
+app.config['SESSION_PERMANENT'] = False  # ❌ Session ends when browser closes
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=20)  # ⏰ Auto-expire after 20 mins of inactivity
 
 UPLOAD_DIR = str(BASE_DIR / "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -48,9 +40,7 @@ init_db()
 def logged_in():
     return session.get("username")
 
-
 def require_login(fn):
-    """Decorator to require login for routes."""
     def wrapper(*a, **kw):
         if not logged_in():
             return redirect(url_for("auth_login"))
@@ -74,7 +64,9 @@ def auth_login_post():
     p = data.get("password", "")
 
     if verify_password(u, p):
+        session.clear()
         session["username"] = u
+        session.permanent = False  # Only active during browser session
         ensure_user_csv(u)
         return jsonify({"ok": True, "redirect": url_for("dashboard")})
     return jsonify({"error": "Invalid credentials"}), 401
@@ -82,7 +74,6 @@ def auth_login_post():
 
 @app.route("/auth/register", methods=["GET"])
 def auth_register():
-    """Render the registration page."""
     if logged_in():
         return redirect(url_for("dashboard"))
     return render_template("auth_register.html")
@@ -90,13 +81,12 @@ def auth_register():
 
 @app.route("/auth/register", methods=["POST"])
 def auth_register_post():
-    """Handle user registration form submission."""
-    data = request.form or request.json or {}
+    data = request.get_json() or request.form
     u = data.get("username", "").strip()
     p = data.get("password", "")
     e = data.get("email", "").strip()
-    q1 = data.get("sec_q1", "").strip()
-    q2 = data.get("sec_q2", "").strip()
+    q1 = data.get("q1", "").strip()
+    q2 = data.get("q2", "").strip()
 
     if not u or not p:
         return jsonify({"error": "Username & password required"}), 400
@@ -104,8 +94,16 @@ def auth_register_post():
     if create_user(u, p, email=e, sec_q1=q1, sec_q2=q2):
         ensure_user_csv(u)
         session["username"] = u
+        session.permanent = False
         return jsonify({"ok": True, "redirect": url_for("dashboard")})
     return jsonify({"error": "Username already exists"}), 409
+
+
+@app.route("/auth/logout")
+def auth_logout():
+    """Clear session and logout"""
+    session.clear()
+    return redirect(url_for("auth_login"))
 
 
 # ----------------- DASHBOARD -----------------
@@ -118,7 +116,6 @@ def root():
 @app.route("/dashboard")
 @require_login
 def dashboard():
-    """Main dashboard: loads user data and visualizations."""
     from predict_expense_from_statement import (
         prepare_monthly_data,
         predict_next_month_expense
@@ -146,10 +143,10 @@ def dashboard():
         ]
         month_names = monthly.index.tolist()
     else:
-        bar_datasets, month_names = [], []
+        bar_datasets = []
+        month_names = []
 
-    return render_template(
-        "dashboard.html",
+    return render_template("dashboard.html",
         total=total,
         predicted=predicted,
         categories=categories,
@@ -158,17 +155,11 @@ def dashboard():
         pie_values=list(categories.values()),
         month_names=month_names,
         bar_datasets=bar_datasets,
-        top5=(
-            df.sort_values("Amount", ascending=False)
-            .head(5)
-            .to_dict(orient="records")
-            if not df.empty
-            else []
-        ),
+        top5=(df.sort_values("Amount", ascending=False).head(5).to_dict(orient="records") if not df.empty else [])
     )
 
 
-# ----------------- PDF UPLOAD -----------------
+# ----------------- UPLOAD PDF -----------------
 @app.route("/upload", methods=["POST"])
 @require_login
 def upload_pdf():
@@ -188,11 +179,7 @@ def upload_pdf():
 
     try:
         from save_pdf_expense import append_transactions_from_pdf
-
-        result = append_transactions_from_pdf(
-            save_path, csv_path, username=user, ignore_duplicates=True
-        )
-        print(f"✅ Upload result: {result}")
+        result = append_transactions_from_pdf(save_path, csv_path, username=user, ignore_duplicates=True)
         return jsonify({"ok": True, "result": result})
     except Exception as e:
         print("❌ Upload failed:", e)
@@ -204,27 +191,13 @@ def upload_pdf():
 @app.route("/admin/users")
 @require_login
 def admin_users():
-    """Admin-only view to list all users."""
     u = get_user_by_username(logged_in())
     if not u or not u.get("is_admin"):
         return "Forbidden", 403
     return jsonify(list_users())
 
 
-# ---------------- DEBUG PATH ROUTE ----------------
-@app.route("/debug-paths")
-def debug_paths():
-    """Optional: to check template/static path correctness."""
-    return jsonify({
-        "cwd": os.getcwd(),
-        "template_folder": app.template_folder,
-        "static_folder": app.static_folder,
-        "frontend_exists": os.path.exists(app.template_folder),
-        "auth_register_exists": os.path.exists(os.path.join(app.template_folder, "auth_register.html")),
-    })
-
-
 # ---------------- START SERVER ----------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # ✅ Railway dynamic port
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
