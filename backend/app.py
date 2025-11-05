@@ -143,22 +143,30 @@ def dashboard():
 @app.route("/upload", methods=["POST"])
 @require_login
 def upload_pdf():
+    from traceback import print_exc
+
     pdf = request.files.get("pdf")
     if not pdf:
         return jsonify({"error": "No PDF uploaded"}), 400
 
+    # Ensure upload directory exists
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
     fname = secure_filename(pdf.filename)
-    save = os.path.join(UPLOAD_DIR, fname)
-    pdf.save(save)
+    save_path = os.path.join(UPLOAD_DIR, fname)
+    pdf.save(save_path)
 
     user = logged_in()
     csv_path = ensure_user_csv(user)
 
     try:
         from save_pdf_expense import append_transactions_from_pdf
-        res = append_transactions_from_pdf(save, csv_path, ignore_duplicates=True)
-        return jsonify({"ok": True, "result": res})
+        result = append_transactions_from_pdf(save_path, csv_path, username=user, ignore_duplicates=True)
+        print(f"✅ Upload result: {result}")
+        return jsonify({"ok": True, "result": result})
     except Exception as e:
+        print("❌ Upload failed:", e)
+        print_exc()
         return jsonify({"error": str(e)}), 500
 
 
