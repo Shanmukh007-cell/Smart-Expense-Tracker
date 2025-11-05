@@ -174,5 +174,8 @@ def admin_users():
 
 # ----------------- START SERVER -----------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # ✅ Railway compatible
+    port = int(os.environ.get("PORT", 8080))  # ✅ Railway compatible
     app.run(host="0.0.0.0", port=port)        # ✅ Works both local & cloud
+
+
+Fix: dynamic PORT for Railway deployment
