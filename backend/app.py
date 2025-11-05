@@ -26,8 +26,8 @@ app = Flask(
 
 app.secret_key = os.environ.get("FLASK_SECRET", "local-dev-secret")
 app.config['SESSION_COOKIE_NAME'] = 'expense_user'
-app.config['SESSION_PERMANENT'] = False  # ❌ Session ends when browser closes
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=20)  # ⏰ Auto-expire after 20 mins of inactivity
+app.config['SESSION_PERMANENT'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=20)
 
 UPLOAD_DIR = str(BASE_DIR / "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -41,6 +41,7 @@ def logged_in():
     return session.get("username")
 
 def require_login(fn):
+    """Decorator: only allow logged-in users."""
     def wrapper(*a, **kw):
         if not logged_in():
             return redirect(url_for("auth_login"))
@@ -66,7 +67,7 @@ def auth_login_post():
     if verify_password(u, p):
         session.clear()
         session["username"] = u
-        session.permanent = False  # Only active during browser session
+        session.permanent = False
         ensure_user_csv(u)
         return jsonify({"ok": True, "redirect": url_for("dashboard")})
     return jsonify({"error": "Invalid credentials"}), 401
@@ -101,7 +102,7 @@ def auth_register_post():
 
 @app.route("/auth/logout")
 def auth_logout():
-    """Clear session and logout"""
+    """Clear session and logout."""
     session.clear()
     return redirect(url_for("auth_login"))
 
@@ -187,14 +188,27 @@ def upload_pdf():
         return jsonify({"error": str(e)}), 500
 
 
-# ----------------- ADMIN ROUTE -----------------
-@app.route("/admin/users")
+# ----------------- ADMIN DASHBOARD (PRIVATE) -----------------
+@app.route("/admin/dashboard")
 @require_login
-def admin_users():
-    u = get_user_by_username(logged_in())
-    if not u or not u.get("is_admin"):
-        return "Forbidden", 403
-    return jsonify(list_users())
+def admin_dashboard():
+    """Secure admin dashboard: only admin can access."""
+    user = get_user_by_username(logged_in())
+    if not user or not user.get("is_admin"):
+        return "Forbidden", 403  # 🚫 Block non-admins
+
+    users = list_users()
+    html = [
+        "<h2>👑 Admin Dashboard</h2>",
+        "<p>Registered Users:</p>",
+        "<table border='1' cellpadding='6' style='border-collapse:collapse;'>",
+        "<tr><th>ID</th><th>Username</th><th>Email</th><th>Admin?</th></tr>"
+    ]
+    for u in users:
+        html.append(f"<tr><td>{u['id']}</td><td>{u['username']}</td><td>{u['email'] or '-'}</td><td>{'✅' if u['is_admin'] else ''}</td></tr>")
+    html.append("</table>")
+    html.append("<p><a href='/dashboard'>⬅️ Back to main dashboard</a></p>")
+    return "\n".join(html)
 
 
 # ---------------- START SERVER ----------------
