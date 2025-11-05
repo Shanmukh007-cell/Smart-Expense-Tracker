@@ -15,21 +15,27 @@ import pandas as pd
 
 
 # ----------------- FLASK APP CONFIG -----------------
-BASE_DIR = Path(__file__).resolve().parent        # backend/
-ROOT_DIR = BASE_DIR.parent                        # project root (smart_expense_tracker_pdf)
-FRONTEND_DIR = ROOT_DIR / "frontend"              # absolute path to frontend/
+BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
 
-# ✅ Print to confirm where Flask is looking (visible in Railway logs)
-print("📁 FRONTEND_DIR =", FRONTEND_DIR)
+# ✅ Absolute frontend paths (for Railway & local)
+FRONTEND_TEMPLATES = str(ROOT_DIR / "frontend")
+FRONTEND_STATIC = str(ROOT_DIR / "frontend")
 
+# Print these to verify once during Railway logs
+print("📂 FRONTEND_TEMPLATES =", FRONTEND_TEMPLATES)
+print("📂 FRONTEND_STATIC =", FRONTEND_STATIC)
+print("📂 Current Working Dir =", os.getcwd())
+
+# ✅ Initialize Flask with absolute template/static dirs
 app = Flask(
     __name__,
-    template_folder=str(FRONTEND_DIR),
-    static_folder=str(FRONTEND_DIR)
+    template_folder=FRONTEND_TEMPLATES,
+    static_folder=FRONTEND_STATIC
 )
 
 app.secret_key = os.environ.get("FLASK_SECRET", "local-dev-secret")
-app.config['SESSION_COOKIE_NAME'] = 'expense_user'
+app.config["SESSION_COOKIE_NAME"] = "expense_user"
 
 UPLOAD_DIR = str(BASE_DIR / "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -44,6 +50,7 @@ def logged_in():
 
 
 def require_login(fn):
+    """Decorator to require login for routes."""
     def wrapper(*a, **kw):
         if not logged_in():
             return redirect(url_for("auth_login"))
@@ -75,6 +82,7 @@ def auth_login_post():
 
 @app.route("/auth/register", methods=["GET"])
 def auth_register():
+    """Render the registration page."""
     if logged_in():
         return redirect(url_for("dashboard"))
     return render_template("auth_register.html")
@@ -82,7 +90,8 @@ def auth_register():
 
 @app.route("/auth/register", methods=["POST"])
 def auth_register_post():
-    data = request.form
+    """Handle user registration form submission."""
+    data = request.form or request.json or {}
     u = data.get("username", "").strip()
     p = data.get("password", "")
     e = data.get("email", "").strip()
@@ -109,6 +118,7 @@ def root():
 @app.route("/dashboard")
 @require_login
 def dashboard():
+    """Main dashboard: loads user data and visualizations."""
     from predict_expense_from_statement import (
         prepare_monthly_data,
         predict_next_month_expense
@@ -136,8 +146,7 @@ def dashboard():
         ]
         month_names = monthly.index.tolist()
     else:
-        bar_datasets = []
-        month_names = []
+        bar_datasets, month_names = [], []
 
     return render_template(
         "dashboard.html",
@@ -149,12 +158,17 @@ def dashboard():
         pie_values=list(categories.values()),
         month_names=month_names,
         bar_datasets=bar_datasets,
-        top5=(df.sort_values("Amount", ascending=False)
-              .head(5).to_dict(orient="records") if not df.empty else [])
+        top5=(
+            df.sort_values("Amount", ascending=False)
+            .head(5)
+            .to_dict(orient="records")
+            if not df.empty
+            else []
+        ),
     )
 
 
-# ----------------- UPLOAD PDF -----------------
+# ----------------- PDF UPLOAD -----------------
 @app.route("/upload", methods=["POST"])
 @require_login
 def upload_pdf():
@@ -165,7 +179,6 @@ def upload_pdf():
         return jsonify({"error": "No PDF uploaded"}), 400
 
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-
     fname = secure_filename(pdf.filename)
     save_path = os.path.join(UPLOAD_DIR, fname)
     pdf.save(save_path)
@@ -175,8 +188,10 @@ def upload_pdf():
 
     try:
         from save_pdf_expense import append_transactions_from_pdf
+
         result = append_transactions_from_pdf(
-            save_path, csv_path, username=user, ignore_duplicates=True)
+            save_path, csv_path, username=user, ignore_duplicates=True
+        )
         print(f"✅ Upload result: {result}")
         return jsonify({"ok": True, "result": result})
     except Exception as e:
@@ -189,13 +204,27 @@ def upload_pdf():
 @app.route("/admin/users")
 @require_login
 def admin_users():
+    """Admin-only view to list all users."""
     u = get_user_by_username(logged_in())
     if not u or not u.get("is_admin"):
         return "Forbidden", 403
     return jsonify(list_users())
 
 
+# ---------------- DEBUG PATH ROUTE ----------------
+@app.route("/debug-paths")
+def debug_paths():
+    """Optional: to check template/static path correctness."""
+    return jsonify({
+        "cwd": os.getcwd(),
+        "template_folder": app.template_folder,
+        "static_folder": app.static_folder,
+        "frontend_exists": os.path.exists(app.template_folder),
+        "auth_register_exists": os.path.exists(os.path.join(app.template_folder, "auth_register.html")),
+    })
+
+
 # ---------------- START SERVER ----------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # ✅ Railway compatible
-    app.run(host="0.0.0.0", port=port)        # ✅ Works both local & cloud
+    port = int(os.environ.get("PORT", 8080))  # ✅ Railway dynamic port
+    app.run(host="0.0.0.0", port=port)
