@@ -107,6 +107,64 @@ def auth_logout():
     return redirect(url_for("auth_login"))
 
 
+
+# ----------------- FORGOT PASSWORD -----------------
+
+@app.route("/forgot", methods=["GET"])
+def forgot_page():
+    """Serve forgot password HTML page"""
+    return render_template("auth_forgot.html")
+
+
+@app.route("/auth/forgot", methods=["POST"])
+def forgot_verify():
+    """
+    Step-1: User enters username + security answers.
+    If correct → return OK so frontend shows reset-password fields.
+    """
+    data = request.get_json() or request.form
+
+    username = data.get("username", "").strip()
+    q1 = data.get("q1", "").strip()
+    q2 = data.get("q2", "").strip()
+
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+
+    user = get_user_by_username(username)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if user["sec_q1"] != q1 or user["sec_q2"] != q2:
+        return jsonify({"error": "Incorrect security answers"}), 403
+
+    # User verified — allow password reset
+    session["reset_user"] = username
+    return jsonify({"ok": True})
+
+
+@app.route("/auth/reset", methods=["POST"])
+def reset_password():
+    """
+    Step-2: User enters new password.
+    """
+    if "reset_user" not in session:
+        return jsonify({"error": "Session expired. Try again."}), 403
+
+    data = request.get_json() or request.form
+    new_pw = data.get("password", "")
+
+    if not new_pw:
+        return jsonify({"error": "Password required"}), 400
+
+    username = session["reset_user"]
+    update_password(username, new_pw)
+
+    session.pop("reset_user", None)
+    return jsonify({"ok": True})
+
+
+
 # ----------------- DASHBOARD -----------------
 @app.route("/")
 @require_login
